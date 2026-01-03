@@ -24,14 +24,55 @@ export class AcmeClient {
 
 	async getDirectory(): Promise<AcmeDirectory> {
 		if (this.directory) return this.directory;
-		const res = await fetchWithRetry(this.config.directoryUrl, {
+
+		// 缓存 ACME directory（通常很稳定），降低每次冷启动都外呼导致的 525 风险
+		// 注意：Cache API 仅支持 GET；directory 正好是 GET。
+		const cache = await caches.open("acme-directory");
+		const cacheKey = new Request(this.config.directoryUrl, {
+			method: "GET",
 			headers: { accept: "application/json" },
 		});
+		const cached = await cache.match(cacheKey);
+		if (cached) {
+			try {
+				const dir = (await cached.json()) as AcmeDirectory;
+				this.directory = dir;
+				return dir;
+			} catch {
+				// ignore cache parse errors and refetch
+			}
+		}
+
+		const res = await fetchWithRetry(
+			this.config.directoryUrl,
+			{ headers: { accept: "application/json" } },
+			6,
+		);
 		if (!res.ok) {
 			const text = await safeReadText(res);
-			throw new Error(`ACME directory fetch failed: ${res.status} ${this.config.directoryUrl} ${text}`.trim());
+			const server = res.headers.get("server") ?? "";
+			const cfRay = res.headers.get("cf-ray") ?? "";
+			const extra = [
+				server ? `server=${server}` : "",
+				cfRay ? `cf-ray=${cfRay}` : "",
+			]
+				.filter(Boolean)
+				.join(" ");
+			throw new Error(`ACME directory fetch failed: ${res.status} ${this.config.directoryUrl} ${extra} ${text}`.trim());
 		}
-		const dir = (await res.json()) as AcmeDirectory;
+		const bodyText = await res.text();
+		const dir = JSON.parse(bodyText) as AcmeDirectory;
+
+		// 写入缓存（1 天），避免频繁外呼
+		await cache.put(
+			cacheKey,
+			new Response(bodyText, {
+				headers: {
+					"content-type": "application/json; charset=utf-8",
+					"cache-control": "public, max-age=86400",
+				},
+			}),
+		);
 		this.directory = dir;
 		return dir;
 	}
@@ -251,9 +292,12 @@ async function fetchWithRetry(url: string, init: RequestInit, retries = 3): Prom
 }
 
 function backoffMs(attempt: number): number {
-	// 250ms, 1000ms, 2500ms, 4000ms...
-	const table = [250, 1000, 2500, 4000, 6000];
-	return table[Math.min(attempt, table.length - 1)];
+	// 250ms, 1000ms, 2500ms, 4000ms, 6000ms, 9000ms, 12000ms...
+	const table = [250, 1000, 2500, 4000, 6000, 9000, 12000];
+	const base = table[Math.min(attempt, table.length - 1)];
+	// 轻微抖动，避免所有请求同一时间重试
+	const jitter = Math.floor(Math.random() * 200);
+	return base + jitter;
 }
 
 async function safeReadText(res: Response): Promise<string> {
