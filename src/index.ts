@@ -14,7 +14,7 @@ export default {
 				return Response.json({ ok: true });
 			}
 
-			if (url.pathname !== "/cert" && url.pathname !== "/key") {
+			if (url.pathname !== "/cert") {
 				return new Response("Not Found", { status: 404 });
 			}
 
@@ -35,19 +35,11 @@ export default {
 			}
 
 			const material = await getOrRenewCertificateMaterial(domain, env, ctx);
-			if (url.pathname === "/cert") {
-				return Response.json({
-					domain,
-					provider: material.provider,
-					notAfter: material.notAfterIso,
-					certPem: material.certPem,
-					cached: material.cached,
-				});
-			}
 			return Response.json({
 				domain,
 				provider: material.provider,
 				notAfter: material.notAfterIso,
+				certPem: material.certPem,
 				keyPem: material.keyPem,
 				cached: material.cached,
 			});

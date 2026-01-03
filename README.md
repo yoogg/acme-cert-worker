@@ -23,10 +23,9 @@ Cloudflare Worker：自动申请/续期 SSL 证书（DNS-01），并通过 API �
 ## API
 
 - `GET /health`：健康检查
-- `GET /cert?domain=example.com`：返回证书（JSON：certPem/notAfter/provider）。
-- `GET /key?domain=example.com`：返回私钥（JSON：keyPem/notAfter/provider）。
+- `GET /cert?domain=example.com`：返回证书与私钥（JSON：certPem/keyPem/notAfter/provider）。
 
-> 建议：只把 `/key` 暴露在内网或额外加网关保护。
+> 注意：该接口会返回私钥，请务必仅在内网或加网关保护后使用。
 
 ## GitHub 与一键部署
 
