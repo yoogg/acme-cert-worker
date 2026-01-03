@@ -33,9 +33,19 @@ export function base64UrlEncodeJson(obj: unknown): string {
 
 export function derEcdsaSigToJose(rawDer: ArrayBuffer, keySizeBytes: number): Uint8Array {
 	// WebCrypto ECDSA sign 通常返回 ASN.1 DER SEQUENCE(INTEGER r, INTEGER s)
+	// 但某些运行时/兼容层可能直接返回 P1363 原始格式：r||s（固定 2*keySizeBytes 字节）
 	const bytes = new Uint8Array(rawDer);
+	if (bytes.length === keySizeBytes * 2) {
+		return bytes;
+	}
+
 	let offset = 0;
-	if (bytes[offset++] !== 0x30) throw new Error("Invalid ECDSA DER (no SEQ)");
+	if (bytes[offset++] !== 0x30) {
+		const head = Array.from(bytes.slice(0, Math.min(8, bytes.length)))
+			.map((b) => b.toString(16).padStart(2, "0"))
+			.join(" ");
+		throw new Error(`Invalid ECDSA signature format (expected DER SEQ or P1363), len=${bytes.length}, head=${head}`);
+	}
 	const seqLen = readDerLength(bytes, offset);
 	offset = seqLen.nextOffset;
 	const seqEnd = offset + seqLen.length;
