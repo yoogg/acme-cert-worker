@@ -1,0 +1,6 @@
+[
+  {
+    "provider": "GTS",
+    "directoryUrl": "REPLACE_WITH_GTS_ACME_DIRECTORY_URL"
+  }
+]

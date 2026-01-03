@@ -1,0 +1,18 @@
+[
+  {
+    "provider": "ZeroSSL",
+    "directoryUrl": "https://acme.zerossl.com/v2/DV90",
+    "eab": {
+      "kid": "REPLACE_WITH_EAB_KID",
+      "hmacKeyBase64url": "REPLACE_WITH_EAB_HMAC_KEY_BASE64URL"
+    }
+  },
+  {
+    "provider": "LE",
+    "directoryUrl": "https://acme-v02.api.letsencrypt.org/directory"
+  },
+  {
+    "provider": "GTS",
+    "directoryUrl": "REPLACE_WITH_GTS_ACME_DIRECTORY_URL"
+  }
+]

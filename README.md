@@ -74,6 +74,16 @@ ZeroSSL 通常需要 EAB（External Account Binding）。在 `CA_PROVIDERS_JSON`
 
 GTS 的 ACME directory URL 可能随产品/区域不同而变化；建议你把 directory URL 明确写到 `CA_PROVIDERS_JSON` 里作为一个 provider。
 
+本项目提供了示例配置文件：
+
+- [configs/ca-providers.gts.example.json](configs/ca-providers.gts.example.json)：仅 GTS provider
+- [configs/ca-providers.full.example.json](configs/ca-providers.full.example.json)：ZeroSSL/LE/GTS 完整示例（含占位符）
+
+使用方式（把 JSON 内容作为环境变量 `CA_PROVIDERS_JSON` 的值）：
+
+- 推荐：在 Cloudflare Dashboard → Worker → Settings → Variables/Secrets 中粘贴 JSON
+- 或本地：`npx wrangler secret put CA_PROVIDERS_JSON`（粘贴文件内容即可）
+
 ## 开发
 
 - `npm i`
