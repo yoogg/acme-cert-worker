@@ -40,7 +40,6 @@ Cloudflare Worker：自动申请/续期 SSL 证书（DNS-01），并通过 API �
 
 ### 2) Cloudflare 一键部署（Deploy Button）
 
-部署链接：
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/yoogg/acme-cert-worker)
 
 ### 3) GitHub Actions 自动部署（可选）
