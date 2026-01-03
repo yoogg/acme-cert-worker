@@ -78,4 +78,15 @@ GTS 的 ACME directory URL 可能随产品/区域不同而变化；建议你把 
 - `npm i`
 - `npm run dev`
 
+## 运行时说明（避免 1101）
+
+本项目依赖的 `@peculiar/x509` 在 Workers 运行时需要 Node 兼容层，因此已在 [wrangler.toml](wrangler.toml) 启用：
+
+- `compatibility_flags = ["nodejs_compat"]`
+
+如果你仍然看到 `Error 1101 Worker threw exception`：
+
+- 打开 Cloudflare Dashboard → Workers → Logs 查看 `console.error` 输出
+- 直接访问 `/health` 确认 Worker 是否能正常启动
+
 > 说明：本项目会使用 DNS-01，因此域名的 DNS 需要在 Cloudflare 上可由 Token 管理。
