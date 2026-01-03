@@ -20,6 +20,43 @@ export function findZoneIdForDomain(domain: string, zoneMap: ZoneMapEntry[]): st
 	return best?.zoneId ?? null;
 }
 
+export async function resolveZoneIdForDomain(cfApiToken: string, domain: string, zoneMap: ZoneMapEntry[]): Promise<string> {
+	const mapped = findZoneIdForDomain(domain, zoneMap);
+	if (mapped) return mapped;
+
+	// Fallback: query Cloudflare Zones API by walking up the domain labels.
+	// Requires the API token to have Zone:Read in addition to DNS Edit.
+	let candidate = domain.toLowerCase().replace(/^\*\./, "");
+	while (candidate.includes(".")) {
+		const zoneId = await tryGetZoneIdByName(cfApiToken, candidate);
+		if (zoneId) return zoneId;
+		candidate = candidate.split(".").slice(1).join(".");
+	}
+	throw new Error(
+		"Missing/invalid CF_ZONE_MAP_JSON (and auto zone lookup failed). " +
+			"Either set CF_ZONE_MAP_JSON with zoneId mapping, or grant the token Zone:Read and retry.",
+	);
+}
+
+async function tryGetZoneIdByName(cfApiToken: string, zoneName: string): Promise<string | null> {
+	const url = new URL("https://api.cloudflare.com/client/v4/zones");
+	url.searchParams.set("name", zoneName);
+	url.searchParams.set("status", "active");
+	url.searchParams.set("per_page", "1");
+	const res = await fetch(url.toString(), {
+		headers: {
+			authorization: `Bearer ${cfApiToken}`,
+			accept: "application/json",
+		},
+	});
+	const body = (await res.json()) as any;
+	if (!res.ok || body?.success === false) {
+		return null;
+	}
+	const first = body?.result?.[0];
+	return typeof first?.id === "string" ? first.id : null;
+}
+
 export function dns01RecordName(domainOrWildcard: string): string {
 	const d = domainOrWildcard.toLowerCase().replace(/^\*\./, "");
 	return `_acme-challenge.${d}`;

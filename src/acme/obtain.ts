@@ -2,7 +2,7 @@ import { AcmeClient, type AcmeProviderConfig } from "./client";
 import { loadAccount, saveAccount } from "./accountStore";
 import { generateCsrDer, generateTlsKeyPair, exportPrivateKeyPem } from "../csr";
 import { generateEcP256KeyPair, exportJwkPrivate, exportJwkPublic } from "../utils/webcrypto";
-import { createTxtRecord, deleteRecord, dns01RecordName, findZoneIdForDomain } from "../cloudflareDns";
+import { createTxtRecord, deleteRecord, dns01RecordName, resolveZoneIdForDomain } from "../cloudflareDns";
 import type { ZoneMapEntry } from "../env";
 
 export type ObtainedCertificate = {
@@ -67,8 +67,7 @@ async function obtainCertificateSingle(params: {
 	const identifiers = buildIdentifiers(params.domain, params.includeApexWithWildcard);
 	const { order, orderUrl } = await client.newOrder(account, identifiers);
 
-	const zoneId = findZoneIdForDomain(params.domain, params.zoneMap);
-	if (!zoneId) throw new Error(`No zoneId matched for domain ${params.domain}`);
+	const zoneId = await resolveZoneIdForDomain(params.cfApiToken, params.domain, params.zoneMap);
 
 	// 做每个 authorization 的 dns-01
 	for (const authzUrl of order.authorizations) {

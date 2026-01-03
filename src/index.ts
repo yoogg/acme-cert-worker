@@ -74,7 +74,6 @@ async function getOrRenewCertificateMaterial(domain: string, env: Env, ctx: Exec
 
 	if (!env.CF_API_TOKEN) throw new Error("Missing CF_API_TOKEN");
 	if (providers.length === 0) throw new Error("Missing/invalid CA_PROVIDERS_JSON");
-	if (zoneMap.length === 0) throw new Error("Missing/invalid CF_ZONE_MAP_JSON");
 
 	const cached = await loadCachedCert(env.CERTS_KV, domain);
 	if (cached) {

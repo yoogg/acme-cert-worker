@@ -24,8 +24,13 @@ export class AcmeClient {
 
 	async getDirectory(): Promise<AcmeDirectory> {
 		if (this.directory) return this.directory;
-		const res = await fetch(this.config.directoryUrl, { headers: { accept: "application/json" } });
-		if (!res.ok) throw new Error(`ACME directory fetch failed: ${res.status}`);
+		const res = await fetchWithRetry(this.config.directoryUrl, {
+			headers: { accept: "application/json" },
+		});
+		if (!res.ok) {
+			const text = await safeReadText(res);
+			throw new Error(`ACME directory fetch failed: ${res.status} ${this.config.directoryUrl} ${text}`.trim());
+		}
 		const dir = (await res.json()) as AcmeDirectory;
 		this.directory = dir;
 		return dir;
@@ -33,7 +38,7 @@ export class AcmeClient {
 
 	async newNonce(): Promise<string> {
 		const dir = await this.getDirectory();
-		const res = await fetch(dir.newNonce, { method: "HEAD" });
+		const res = await fetchWithRetry(dir.newNonce, { method: "HEAD" });
 		const nonce = res.headers.get("replay-nonce");
 		if (!nonce) throw new Error("ACME newNonce missing replay-nonce");
 		this.nonce = nonce;
@@ -68,7 +73,7 @@ export class AcmeClient {
 		else protectedHeader.jwk = account.jwkPublic;
 
 		const jws = await signEs256Jws(privateKey, protectedHeader, payload === "POST_AS_GET" ? "" : (payload as any));
-		const res = await fetch(url, {
+		const res = await fetchWithRetry(url, {
 			method: "POST",
 			headers: {
 				"content-type": "application/jose+json",
@@ -81,7 +86,7 @@ export class AcmeClient {
 		const contentType = res.headers.get("content-type") ?? "";
 
 		if (!res.ok) {
-			const text = await res.text();
+			const text = await safeReadText(res);
 			throw new Error(`ACME request failed ${res.status} ${url}: ${text.slice(0, 2000)}`);
 		}
 
@@ -224,6 +229,39 @@ export class AcmeClient {
 		const bytes = utf8ToBytes(keyAuth);
 		const digest = await crypto.subtle.digest("SHA-256", toArrayBuffer(bytes));
 		return base64UrlEncode(digest);
+	}
+}
+
+async function fetchWithRetry(url: string, init: RequestInit, retries = 3): Promise<Response> {
+	const transient = new Set([408, 425, 429, 500, 502, 503, 504, 522, 524, 525]);
+	let lastError: unknown;
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		try {
+			const res = await fetch(url, init);
+			if (!transient.has(res.status) || attempt === retries) return res;
+			await sleep(backoffMs(attempt));
+			continue;
+		} catch (e) {
+			lastError = e;
+			if (attempt === retries) throw e;
+			await sleep(backoffMs(attempt));
+		}
+	}
+	throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+function backoffMs(attempt: number): number {
+	// 250ms, 1000ms, 2500ms, 4000ms...
+	const table = [250, 1000, 2500, 4000, 6000];
+	return table[Math.min(attempt, table.length - 1)];
+}
+
+async function safeReadText(res: Response): Promise<string> {
+	try {
+		const t = await res.text();
+		return t.length > 300 ? t.slice(0, 300) : t;
+	} catch {
+		return "";
 	}
 }
 
