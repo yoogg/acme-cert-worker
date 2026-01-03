@@ -1,0 +1,43 @@
+name = "acme-cert-worker"
+main = "src/index.ts"
+compatibility_date = "2026-01-03"
+
+# KV: 缓存证书/私钥、以及 ACME account
+kv_namespaces = [
+  { binding = "CERTS_KV", id = "REPLACE_WITH_KV_ID" }
+]
+
+# 如需绑定路由：
+# routes = [
+#   { pattern = "cert-api.example.com/*", zone_name = "example.com" }
+# ]
+
+[vars]
+# 允许申请/查询的域名列表（逗号分隔）。支持 "example.com" 和 "*.example.com" 两种写法。
+ALLOWED_DOMAINS = "example.com,*.example.com"
+
+# Bearer Token（用于保护 /cert 接口）
+AUTH_TOKEN = "CHANGE_ME"
+
+# Cloudflare API Token（用于 DNS-01 创建/删除 TXT 记录）
+CF_API_TOKEN = "REPLACE_ME"
+
+# 域名到 zoneId 的映射（JSON 数组）。按 suffix 匹配。
+# 例：[{"suffix":"example.com","zoneId":"xxxxxxxx"}]
+CF_ZONE_MAP_JSON = "[]"
+
+# 续期阈值（天）
+RENEW_BEFORE_DAYS = "30"
+
+# DNS 传播等待（秒）
+DNS_PROPAGATION_SECONDS = "20"
+
+# ACME Providers（JSON 数组）。可配置多个，按顺序尝试。
+# provider: LE/ZeroSSL/GTS（仅用于日志）
+# directoryUrl: ACME directory URL
+# eab: ZeroSSL 常用，需要 {kid,hmacKeyBase64url}
+CA_PROVIDERS_JSON = "[\n  {\"provider\":\"LE\",\"directoryUrl\":\"https://acme-v02.api.letsencrypt.org/directory\"}\n]"
+
+# 重要：需要配置 CF_ZONE_MAP_JSON 才能创建 DNS TXT。
+# 示例：
+# CF_ZONE_MAP_JSON = "[{\"suffix\":\"example.com\",\"zoneId\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]"
