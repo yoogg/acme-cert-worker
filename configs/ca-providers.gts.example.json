@@ -1,6 +1,10 @@
 [
   {
     "provider": "GTS",
-    "directoryUrl": "REPLACE_WITH_GTS_ACME_DIRECTORY_URL"
+    "directoryUrl": "https://dv.acme-v02.api.pki.goog/directory",
+    "eab": {
+      "kid": "REPLACE_WITH_GTS_EAB_KID",
+      "hmacKeyBase64url": "REPLACE_WITH_GTS_EAB_HMAC_KEY_BASE64_OR_BASE64URL"
+    }
   }
 ]

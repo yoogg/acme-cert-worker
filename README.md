@@ -72,7 +72,18 @@ ZeroSSL 通常需要 EAB（External Account Binding）。在 `CA_PROVIDERS_JSON`
 
 ### Google Trust Services（可选）
 
-GTS 的 ACME directory URL 可能随产品/区域不同而变化；建议你把 directory URL 明确写到 `CA_PROVIDERS_JSON` 里作为一个 provider。
+Google Trust Services (GTS) 的 Public CA ACME 示例目录（DV）如下：
+
+- `https://dv.acme-v02.api.pki.goog/directory`
+
+GTS 需要 EAB（External Account Binding）。因此在 `CA_PROVIDERS_JSON` 里为 GTS provider 配置 `eab.kid` 与 `eab.hmacKeyBase64url`。
+
+本项目提供了示例配置文件：
+
+- [configs/ca-providers.gts.example.json](configs/ca-providers.gts.example.json)：仅 GTS provider（含 EAB 占位符）
+- [configs/ca-providers.full.example.json](configs/ca-providers.full.example.json)：ZeroSSL/LE/GTS 完整示例（含占位符）
+
+你需要在 Google Cloud 侧创建 EAB key（返回的 Key 可能是 base64 或 base64url，本项目两者都兼容）。
 
 本项目提供了示例配置文件：
 

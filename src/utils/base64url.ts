@@ -7,7 +7,10 @@ export function base64UrlEncode(data: ArrayBuffer | Uint8Array): string {
 }
 
 export function base64UrlDecodeToBytes(value: string): Uint8Array {
-	const b64 = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+	// Accept base64url or standard base64, with or without padding.
+	const trimmed = value.trim().replace(/=+$/g, "");
+	const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+	const b64 = normalized + "===".slice((normalized.length + 3) % 4);
 	const binary = atob(b64);
 	const out = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
