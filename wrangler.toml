@@ -34,6 +34,9 @@ RENEW_BEFORE_DAYS = "30"
 # DNS 传播等待（秒）
 DNS_PROPAGATION_SECONDS = "20"
 
+# ACME 账户联系邮箱（GTS 要求 new-account 至少一个 contact）
+ACME_CONTACT_EMAIL = "admin@example.com"
+
 # ACME Providers（JSON 数组）。可配置多个，按顺序尝试。
 # provider: LE/ZeroSSL/GTS（仅用于日志）
 # directoryUrl: ACME directory URL

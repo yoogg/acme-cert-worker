@@ -18,6 +18,8 @@ Cloudflare Worker：自动申请/续期 SSL 证书（DNS-01），并通过 API �
 	- 如果 Token 没有 `Zone:Read`，则必须填写该映射。
 - `RENEW_BEFORE_DAYS`：小于该天数则自动续期（默认 30）。
 - `DNS_PROPAGATION_SECONDS`：写入 TXT 记录后等待传播的秒数（默认 20）。
+- `ACME_CONTACT_EMAIL`：ACME 账户联系邮箱（例如 `admin@example.com`）。
+	- 说明：Google Trust Services（GTS）要求 new-account 至少包含一个 contact；不填会报 `Accounts must have at least one contact.`
 - `CA_PROVIDERS_JSON`：ACME Provider 配置（JSON 数组），按顺序尝试。
 
 ## API

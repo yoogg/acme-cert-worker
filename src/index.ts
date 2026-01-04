@@ -87,6 +87,7 @@ async function getOrRenewCertificateMaterial(domain: string, env: Env, ctx: Exec
 		cfApiToken: env.CF_API_TOKEN,
 		zoneMap,
 		dnsPropagationSeconds: dnsWaitSeconds,
+		acmeContactEmail: env.ACME_CONTACT_EMAIL,
 		log,
 	});
 

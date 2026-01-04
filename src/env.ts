@@ -19,6 +19,9 @@ export type Env = {
 	RENEW_BEFORE_DAYS: string;
 	DNS_PROPAGATION_SECONDS: string;
 
+	// Some ACME providers (notably GTS) require at least one contact on account registration.
+	ACME_CONTACT_EMAIL: string;
+
 	CA_PROVIDERS_JSON: string;
 };
 

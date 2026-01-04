@@ -8,6 +8,11 @@ export type CloudflareDnsRecord = {
 	type: string;
 };
 
+export type CreatedTxtRecord = {
+	record: CloudflareDnsRecord;
+	created: boolean;
+};
+
 export function findZoneIdForDomain(domain: string, zoneMap: ZoneMapEntry[]): string | null {
 	const d = domain.toLowerCase().replace(/^\*\./, "");
 	let best: ZoneMapEntry | null = null;
@@ -62,7 +67,11 @@ export function dns01RecordName(domainOrWildcard: string): string {
 	return `_acme-challenge.${d}`;
 }
 
-export async function createTxtRecord(cfApiToken: string, zoneId: string, name: string, content: string): Promise<CloudflareDnsRecord> {
+export async function createTxtRecord(cfApiToken: string, zoneId: string, name: string, content: string): Promise<CreatedTxtRecord> {
+	// 幂等：如果已存在相同的 TXT（常见于上次异常未清理、或并发请求），直接复用
+	const existing = await findExistingTxtRecord(cfApiToken, zoneId, name, content);
+	if (existing) return { record: existing, created: false };
+
 	const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
 		method: "POST",
 		headers: {
@@ -73,9 +82,39 @@ export async function createTxtRecord(cfApiToken: string, zoneId: string, name: 
 	});
 	const body = (await res.json()) as any;
 	if (!res.ok || body?.success === false) {
+		// 81058: An identical record already exists.
+		const errorCodes: number[] = Array.isArray(body?.errors) ? body.errors.map((e: any) => e?.code).filter((x: any) => typeof x === "number") : [];
+		if (errorCodes.includes(81058)) {
+			const found = await findExistingTxtRecord(cfApiToken, zoneId, name, content);
+			if (found) return { record: found, created: false };
+		}
 		throw new Error(`Cloudflare DNS create failed: ${res.status} ${JSON.stringify(body).slice(0, 2000)}`);
 	}
-	return body.result as CloudflareDnsRecord;
+	return { record: body.result as CloudflareDnsRecord, created: true };
+}
+
+async function findExistingTxtRecord(
+	cfApiToken: string,
+	zoneId: string,
+	name: string,
+	content: string,
+): Promise<CloudflareDnsRecord | null>
+{
+	const url = new URL(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`);
+	url.searchParams.set("type", "TXT");
+	url.searchParams.set("name", name);
+	url.searchParams.set("per_page", "100");
+	const res = await fetch(url.toString(), {
+		headers: {
+			authorization: `Bearer ${cfApiToken}`,
+			accept: "application/json",
+		},
+	});
+	if (!res.ok) return null;
+	const body = (await res.json()) as any;
+	if (body?.success === false || !Array.isArray(body?.result)) return null;
+	const found = (body.result as any[]).find((r) => r?.type === "TXT" && r?.name === name && r?.content === content);
+	return found && typeof found.id === "string" ? (found as CloudflareDnsRecord) : null;
 }
 
 export async function deleteRecord(cfApiToken: string, zoneId: string, recordId: string): Promise<void> {

@@ -20,6 +20,7 @@ export async function obtainCertificateWithFallback(params: {
 	cfApiToken: string;
 	zoneMap: ZoneMapEntry[];
 	dnsPropagationSeconds: number;
+	acmeContactEmail?: string;
 	log: (msg: string) => void;
 }): Promise<ObtainedCertificate>
 {
@@ -47,6 +48,7 @@ async function obtainCertificateSingle(params: {
 	cfApiToken: string;
 	zoneMap: ZoneMapEntry[];
 	dnsPropagationSeconds: number;
+	acmeContactEmail?: string;
 	log: (msg: string) => void;
 }): Promise<ObtainedCertificate>
 {
@@ -62,6 +64,7 @@ async function obtainCertificateSingle(params: {
 			};
 		},
 		async (state) => saveAccount(params.kv, params.provider, state),
+		params.acmeContactEmail,
 	);
 
 	const identifiers = buildIdentifiers(params.domain, params.includeApexWithWildcard);
@@ -76,7 +79,7 @@ async function obtainCertificateSingle(params: {
 		const recordName = dns01RecordName(identifier);
 
 		params.log(`DNS-01 set TXT ${recordName}`);
-		const record = await createTxtRecord(params.cfApiToken, zoneId, recordName, txtValue);
+		const { record, created } = await createTxtRecord(params.cfApiToken, zoneId, recordName, txtValue);
 		try {
 			if (params.dnsPropagationSeconds > 0) {
 				await sleep(params.dnsPropagationSeconds * 1000);
@@ -84,10 +87,12 @@ async function obtainCertificateSingle(params: {
 			await client.respondToChallenge(account, challengeUrl);
 			await client.pollAuthorizationValid(account, authzUrl);
 		} finally {
-			try {
-				await deleteRecord(params.cfApiToken, zoneId, record.id);
-			} catch (e) {
-				params.log(`DNS cleanup failed (ignored): ${String(e)}`);
+			if (created) {
+				try {
+					await deleteRecord(params.cfApiToken, zoneId, record.id);
+				} catch (e) {
+					params.log(`DNS cleanup failed (ignored): ${String(e)}`);
+				}
 			}
 		}
 	}

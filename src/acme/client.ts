@@ -147,6 +147,7 @@ export class AcmeClient {
 		stored: AcmeAccountState | null,
 		generateAccount: () => Promise<{ jwkPrivate: JwkEcPrivate; jwkPublic: JwkEcPublic }>,
 		save: (state: AcmeAccountState) => Promise<void>,
+		contactEmail?: string,
 	): Promise<AcmeAccountState>
 	{
 		if (stored && stored.directoryUrl === this.config.directoryUrl && stored.kid) return stored;
@@ -157,6 +158,10 @@ export class AcmeClient {
 		const payload: Record<string, unknown> = {
 			termsOfServiceAgreed: true,
 		};
+		const email = (contactEmail ?? "").trim();
+		if (email) {
+			payload.contact = [email.startsWith("mailto:") ? email : `mailto:${email}`];
+		}
 
 		if (this.config.eab) {
 			payload.externalAccountBinding = await this.createExternalAccountBinding(dir.newAccount, this.config.eab.kid, this.config.eab.hmacKeyBase64url, jwkPublic);
@@ -222,13 +227,19 @@ export class AcmeClient {
 	}
 
 	async pollAuthorizationValid(account: AcmeAccountState, authorizationUrl: string, timeoutMs = 120_000): Promise<void> {
+		// 轮询会产生大量 subrequests；使用退避减少请求次数，避免触发 Workers 的 "Too many subrequests"。
 		const start = Date.now();
+		let delayMs = 2000;
+		let attempts = 0;
+		const maxAttempts = 12;
 		while (true) {
 			const authz = await this.getAuthorization(account, authorizationUrl);
 			if (authz.status === "valid") return;
 			if (authz.status === "invalid") throw new Error(`ACME authorization invalid: ${authorizationUrl}`);
 			if (Date.now() - start > timeoutMs) throw new Error(`ACME authorization timeout: ${authorizationUrl}`);
-			await sleep(2000);
+			if (attempts++ >= maxAttempts) throw new Error(`ACME authorization poll exceeded attempts: ${authorizationUrl}`);
+			await sleep(delayMs);
+			delayMs = Math.min(Math.floor(delayMs * 1.7), 10_000);
 		}
 	}
 
@@ -241,13 +252,18 @@ export class AcmeClient {
 
 	async pollOrderValid(account: AcmeAccountState, orderUrl: string, timeoutMs = 180_000): Promise<AcmeOrder> {
 		const start = Date.now();
+		let delayMs = 2000;
+		let attempts = 0;
+		const maxAttempts = 12;
 		while (true) {
 			const result = await this.signedRequest<AcmeOrder>(orderUrl, { kid: account.kid }, account.jwkPrivate, "POST_AS_GET");
 			const order = result.body;
 			if (order.status === "valid") return order;
 			if (order.status === "invalid") throw new Error(`ACME order invalid: ${orderUrl}`);
 			if (Date.now() - start > timeoutMs) throw new Error(`ACME order timeout: ${orderUrl}`);
-			await sleep(2000);
+			if (attempts++ >= maxAttempts) throw new Error(`ACME order poll exceeded attempts: ${orderUrl}`);
+			await sleep(delayMs);
+			delayMs = Math.min(Math.floor(delayMs * 1.7), 10_000);
 		}
 	}
 
